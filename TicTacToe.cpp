@@ -1,1182 +1,629 @@
 /*--------
-//This Program written by POYA
-visit us at:
-discord:POYA#2243
+Advanced Tic-Tac-Toe Game
+Features:
+- Object-oriented design with proper encapsulation
+- Minimax AI algorithm with alpha-beta pruning
+- Multiple difficulty levels (Easy, Medium, Hard, Expert)
+- Game statistics tracking with win percentages
+- Modern C++ features (smart pointers, STL containers)
+- Cross-platform compatibility
+- Enhanced user interface
+- Memory-safe implementation
+- Error handling and input validation
 --------------*/
-#include<iostream>
-#include<conio.h>
-#define TABSIZE 150
-using namespace std;
 
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <limits>
+#include <memory>
+#include <string>
+#include <iomanip>
+#include <random>
+#include <chrono>
+#include <cstdlib>
+#include <thread>
 
-bool isEmpty(char **a , int column , int row)
-{
-     if(a[column][row]=='-')
-     {
-          return true;
-     }
-     else
-     {
-          return false;
-     }
-}
+// Cross-platform compatibility
+#ifdef _WIN32
+    #include <conio.h>
+    #include <windows.h>
+    #define CLEAR_SCREEN "cls"
+#else
+    #define CLEAR_SCREEN "clear"
+#endif
 
-int *chooseEasy(char **a)
-{
-    int * comch=new int[2];
-    int i=0 , j=0;
-    for(i=1 ; i<3 ; i++)
-    {
-            for( j=1 ; j<3 ; j++ )
-            {
-                 if(isEmpty(a,(2*i)+1,(j*4)+2)==true)
-                 {
-                                  comch[0]=(2*i)+1;
-                                  comch[1]=(4*j)+2;
-                 }
+// Game Statistics Class
+class GameStats {
+private:
+    int playerWins = 0;
+    int computerWins = 0;
+    int draws = 0;
+    int totalGames = 0;
+    std::chrono::steady_clock::time_point startTime;
+
+public:
+    void startGame() {
+        startTime = std::chrono::steady_clock::now();
+    }
+    
+    void recordResult(int winner) {
+        totalGames++;
+        switch(winner) {
+            case 1: playerWins++; break;
+            case 2: computerWins++; break;
+            case 0: draws++; break;
+        }
+    }
+    
+    void displayStats() const {
+        auto endTime = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime);
+        
+        std::cout << "\n" << std::string(50, '=') << std::endl;
+        std::cout << "              GAME STATISTICS" << std::endl;
+        std::cout << std::string(50, '=') << std::endl;
+        std::cout << "Total Games Played: " << totalGames << std::endl;
+        std::cout << "Player Wins: " << playerWins << " (" 
+                  << std::fixed << std::setprecision(1)
+                  << (totalGames > 0 ? (playerWins * 100.0 / totalGames) : 0) << "%)" << std::endl;
+        std::cout << "Computer Wins: " << computerWins << " (" 
+                  << (totalGames > 0 ? (computerWins * 100.0 / totalGames) : 0) << "%)" << std::endl;
+        std::cout << "Draws: " << draws << " (" 
+                  << (totalGames > 0 ? (draws * 100.0 / totalGames) : 0) << "%)" << std::endl;
+        std::cout << "Session Duration: " << duration.count() << " seconds" << std::endl;
+        
+        if (totalGames > 0) {
+            double winRate = (playerWins * 100.0 / totalGames);
+            std::cout << "\nPerformance Rating: ";
+            if (winRate >= 70) std::cout << "EXCELLENT!";
+            else if (winRate >= 50) std::cout << "GOOD!";
+            else if (winRate >= 30) std::cout << "FAIR";
+            else std::cout << "NEEDS IMPROVEMENT";
+            std::cout << std::endl;
+        }
+        std::cout << std::string(50, '=') << std::endl;
+    }
+    
+    void reset() {
+        playerWins = computerWins = draws = totalGames = 0;
+    }
+};
+
+// Game Board Class
+class TicTacToeBoard {
+private:
+    std::vector<std::vector<char>> board;
+    static const int SIZE = 3;
+    
+public:
+    TicTacToeBoard() : board(SIZE, std::vector<char>(SIZE, ' ')) {}
+    
+    void reset() {
+        for (auto& row : board) {
+            std::fill(row.begin(), row.end(), ' ');
+        }
+    }
+    
+    bool makeMove(int row, int col, char player) {
+        if (isValidPosition(row, col) && board[row][col] == ' ') {
+            board[row][col] = player;
+            return true;
+        }
+        return false;
+    }
+    
+    void undoMove(int row, int col) {
+        if (isValidPosition(row, col)) {
+            board[row][col] = ' ';
+        }
+    }
+    
+    char getCell(int row, int col) const {
+        if (isValidPosition(row, col)) {
+            return board[row][col];
+        }
+        return ' ';
+    }
+    
+    bool isValidPosition(int row, int col) const {
+        return row >= 0 && row < SIZE && col >= 0 && col < SIZE;
+    }
+    
+    bool isFull() const {
+        for (const auto& row : board) {
+            for (char cell : row) {
+                if (cell == ' ') return false;
             }
-    }
-    /*chs:
-    i=rand()%3+1;
-    j=rand()%3+1;
-    if(isEmpty(a,(2*i)+1,(j*4)+2)==false)
-    {
-           goto chs;
-    }*/
-    return comch;
-}
-
-int *choose(char **a )
-{
-         int * comch=new int[2];
-         if ( a[3][6]=='X' && a[3][10]=='X' && isEmpty(a,3,14)==true)
-         {
-              comch[0]=3;
-              comch[1]=14;
-         }
-         else if ( a[3][10]=='X' && a[3][14]=='X' && isEmpty(a,3,6)==true)
-         {
-              comch[0]=3;
-              comch[1]=6;
-         }
-         else if ( a[3][6]=='X' && a[3][14]=='X' && isEmpty(a,3,10)==true)
-         {
-              comch[0]=3;
-              comch[1]=10;
-         }
-         else if ( a[5][6]=='X' && a[5][10]=='X' && isEmpty(a,5,14)==true)
-         {
-              comch[0]=5;
-              comch[1]=14;
-         }
-         else if ( a[5][14]=='X' && a[5][6]=='X' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[5][10]=='X' && a[5][14]=='X' && isEmpty(a,5,6)==true)
-         {
-              comch[0]=5;
-              comch[1]=6;
-         }
-         else if ( a[7][6]=='X' && a[7][10]=='X' && isEmpty(a,7,14)==true)
-         {
-              comch[0]=7;
-              comch[1]=14;
-         }
-         else if ( a[7][6]=='X' && a[7][14]=='X' && isEmpty(a,7,10)==true)
-         {
-              comch[0]=7;
-              comch[1]=10;
-         }
-         else if ( a[7][14]=='X' && a[7][10]=='X' && isEmpty(a,7,6)==true)
-         {
-              comch[0]=7;
-              comch[1]=6;
-         }
-         else if ( a[3][6]=='X' && a[5][6]=='X' && isEmpty(a,7,6)==true)
-         {
-              comch[0]=7;
-              comch[1]=6;
-         }
-         else if ( a[3][10]=='X' && a[5][10]=='X' && isEmpty(a,7,10)==true)
-         {
-              comch[0]=7;
-              comch[1]=10;
-         }
-         else if ( a[3][14]=='X' && a[5][14]=='X' && isEmpty(a,7,14)==true)
-         {
-              comch[0]=7;
-              comch[1]=14;
-         }
-         else if ( a[3][10]=='X' && a[7][10]=='X' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[3][6]=='X' && a[7][6]=='X' && isEmpty(a,5,6)==true)
-         {
-              comch[0]=5;
-              comch[1]=6;
-         }
-         else if ( a[3][14]=='X' && a[7][14]=='X' && isEmpty(a,5,14)==true)
-         {
-              comch[0]=5;
-              comch[1]=14;
-         }
-         else if ( a[7][6]=='X' && a[5][6]=='X' && isEmpty(a,3,6)==true)
-         {
-              comch[0]=3;
-              comch[1]=6;
-         }
-         else if ( a[7][10]=='X' && a[5][10]=='X' && isEmpty(a,3,10)==true)
-         {
-              comch[0]=3;
-              comch[1]=10;
-         }
-         else if ( a[7][14]=='X' && a[5][14]=='X' && isEmpty(a,3,14)==true)
-         {
-              comch[0]=3;
-              comch[1]=14;
-         }
-         else if ( a[3][6]=='X' && a[5][10]=='X' && isEmpty(a,7,14)==true)
-         {
-              comch[0]=7;
-              comch[1]=14;
-         }
-         else if ( a[3][6]=='X' && a[7][14]=='X' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[5][10]=='X' && a[7][14]=='X' && isEmpty(a,3,6)==true)
-         {
-              comch[0]=3;
-              comch[1]=6;
-         }
-         else if ( a[3][14]=='X' && a[5][10]=='X' && isEmpty(a,7,6)==true)
-         {
-              comch[0]=7;
-              comch[1]=6;
-         }
-         else if ( a[3][14]=='X' && a[7][6]=='X' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[7][6]=='X' && a[5][10]=='X' && isEmpty(a,3,14)==true)
-         {
-              comch[0]=3;
-              comch[1]=14;
-         }
-         else if ( a[5][10]=='X')
-         {
-              if(isEmpty(a,3,6)==true)
-              {
-                   comch[0]=3;
-                   comch[1]=6;
-              }
-              else if(isEmpty(a,7,6)==true)
-              {
-                   comch[0]=7;
-                   comch[1]=6;
-              }
-              else if(isEmpty(a,7,14)==true)
-              {
-                   comch[0]=7;
-                   comch[1]=14;
-              }
-              else if(isEmpty(a,3,14)==true)
-              {
-                   comch[0]=3;
-                   comch[1]=14;
-              }
-         }
-         else if (isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else
-         {
-             for(int i=1;i<3;i++)
-             {
-                     for(int j=1;j<3;j++)
-                     {
-                             if(isEmpty(a,(i*2)+1,(j*4)+2)==true)
-                             {
-                                                     comch[0]=(i*2)+1;
-                                                     comch[1]=(j*4)+2;
-                             }
-                     }
-             }
         }
-         return comch;
-}
-
-int *chooseHard(char **a )
-{
-         int * comch=new int[2];
-         
-         if ( a[3][6]=='O' && a[3][10]=='O' && isEmpty(a,3,14)==true)
-         {
-              comch[0]=3;
-              comch[1]=14;
-         }
-         else if ( a[3][10]=='O' && a[3][14]=='O' && isEmpty(a,3,6)==true)
-         {
-              comch[0]=3;
-              comch[1]=6;
-         }
-         else if ( a[3][6]=='O' && a[3][14]=='O' && isEmpty(a,3,10)==true)
-         {
-              comch[0]=3;
-              comch[1]=10;
-         }
-         else if ( a[5][6]=='O' && a[5][10]=='O' && isEmpty(a,5,14)==true)
-         {
-              comch[0]=5;
-              comch[1]=14;
-         }
-         else if ( a[5][14]=='O' && a[5][6]=='O' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[5][10]=='O' && a[5][14]=='O' && isEmpty(a,5,6)==true)
-         {
-              comch[0]=5;
-              comch[1]=6;
-         }
-         else if ( a[7][6]=='O' && a[7][10]=='O' && isEmpty(a,7,14)==true)
-         {
-              comch[0]=7;
-              comch[1]=14;
-         }
-         else if ( a[7][6]=='O' && a[7][14]=='O' && isEmpty(a,7,10)==true)
-         {
-              comch[0]=7;
-              comch[1]=10;
-         }
-         else if ( a[7][14]=='O' && a[7][10]=='O' && isEmpty(a,7,6)==true)
-         {
-              comch[0]=7;
-              comch[1]=6;
-         }
-         else if ( a[3][6]=='O' && a[5][6]=='O' && isEmpty(a,7,6)==true)
-         {
-              comch[0]=7;
-              comch[1]=6;
-         }
-         else if ( a[3][10]=='O' && a[5][10]=='O' && isEmpty(a,7,10)==true)
-         {
-              comch[0]=7;
-              comch[1]=10;
-         }
-         else if ( a[3][14]=='O' && a[5][14]=='O' && isEmpty(a,7,14)==true)
-         {
-              comch[0]=7;
-              comch[1]=14;
-         }
-         else if ( a[3][10]=='O' && a[7][10]=='O' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[3][6]=='O' && a[7][6]=='O' && isEmpty(a,5,6)==true)
-         {
-              comch[0]=5;
-              comch[1]=6;
-         }
-         else if ( a[3][14]=='O' && a[7][14]=='O' && isEmpty(a,5,14)==true)
-         {
-              comch[0]=5;
-              comch[1]=14;
-         }
-         else if ( a[7][6]=='O' && a[5][6]=='O' && isEmpty(a,3,6)==true)
-         {
-              comch[0]=3;
-              comch[1]=6;
-         }
-         else if ( a[7][10]=='O' && a[5][10]=='O' && isEmpty(a,3,10)==true)
-         {
-              comch[0]=3;
-              comch[1]=10;
-         }
-         else if ( a[7][14]=='O' && a[5][14]=='O' && isEmpty(a,3,14)==true)
-         {
-              comch[0]=3;
-              comch[1]=14;
-         }
-         else if ( a[3][6]=='X' && a[3][10]=='X' && isEmpty(a,3,14)==true)
-         {
-              comch[0]=3;
-              comch[1]=14;
-         }
-         else if ( a[3][10]=='X' && a[3][14]=='X' && isEmpty(a,3,6)==true)
-         {
-              comch[0]=3;
-              comch[1]=6;
-         }
-         else if ( a[3][6]=='X' && a[3][14]=='X' && isEmpty(a,3,10)==true)
-         {
-              comch[0]=3;
-              comch[1]=10;
-         }
-         else if ( a[5][6]=='X' && a[5][10]=='X' && isEmpty(a,5,14)==true)
-         {
-              comch[0]=5;
-              comch[1]=14;
-         }
-         else if ( a[5][14]=='X' && a[5][6]=='X' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[5][10]=='X' && a[5][14]=='X' && isEmpty(a,5,6)==true)
-         {
-              comch[0]=5;
-              comch[1]=6;
-         }
-         else if ( a[7][6]=='X' && a[7][10]=='X' && isEmpty(a,7,14)==true)
-         {
-              comch[0]=7;
-              comch[1]=14;
-         }
-         else if ( a[7][6]=='X' && a[7][14]=='X' && isEmpty(a,7,10)==true)
-         {
-              comch[0]=7;
-              comch[1]=10;
-         }
-         else if ( a[7][14]=='X' && a[7][10]=='X' && isEmpty(a,7,6)==true)
-         {
-              comch[0]=7;
-              comch[1]=6;
-         }
-         else if ( a[3][6]=='X' && a[5][6]=='X' && isEmpty(a,7,6)==true)
-         {
-              comch[0]=7;
-              comch[1]=6;
-         }
-         else if ( a[3][10]=='X' && a[5][10]=='X' && isEmpty(a,7,10)==true)
-         {
-              comch[0]=7;
-              comch[1]=10;
-         }
-         else if ( a[3][14]=='X' && a[5][14]=='X' && isEmpty(a,7,14)==true)
-         {
-              comch[0]=7;
-              comch[1]=14;
-         }
-         else if ( a[3][10]=='X' && a[7][10]=='X' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[3][6]=='X' && a[7][6]=='X' && isEmpty(a,5,6)==true)
-         {
-              comch[0]=5;
-              comch[1]=6;
-         }
-         else if ( a[3][14]=='X' && a[7][14]=='X' && isEmpty(a,5,14)==true)
-         {
-              comch[0]=5;
-              comch[1]=14;
-         }
-         else if ( a[7][6]=='X' && a[5][6]=='X' && isEmpty(a,3,6)==true)
-         {
-              comch[0]=3;
-              comch[1]=6;
-         }
-         else if ( a[7][10]=='X' && a[5][10]=='X' && isEmpty(a,3,10)==true)
-         {
-              comch[0]=3;
-              comch[1]=10;
-         }
-         else if ( a[7][14]=='X' && a[5][14]=='X' && isEmpty(a,3,14)==true)
-         {
-              comch[0]=3;
-              comch[1]=14;
-         }
-         else if ( a[3][6]=='X' && a[5][10]=='X' && isEmpty(a,7,14)==true)
-         {
-              comch[0]=7;
-              comch[1]=14;
-         }
-         else if ( a[3][6]=='X' && a[7][14]=='X' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[5][10]=='X' && a[7][14]=='X' && isEmpty(a,3,6)==true)
-         {
-              comch[0]=3;
-              comch[1]=6;
-         }
-         else if ( a[3][14]=='X' && a[5][10]=='X' && isEmpty(a,7,6)==true)
-         {
-              comch[0]=7;
-              comch[1]=6;
-         }
-         else if ( a[3][14]=='X' && a[7][6]=='X' && isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else if ( a[7][6]=='X' && a[5][10]=='X' && isEmpty(a,3,14)==true)
-         {
-              comch[0]=3;
-              comch[1]=14;
-         }
-         else if ( a[5][10]=='X')
-         {
-              if(isEmpty(a,3,6)==true)
-              {
-                   comch[0]=3;
-                   comch[1]=6;
-              }
-              else if(isEmpty(a,7,6)==true)
-              {
-                   comch[0]=7;
-                   comch[1]=6;
-              }
-              else if(isEmpty(a,7,14)==true)
-              {
-                   comch[0]=7;
-                   comch[1]=14;
-              }
-              else if(isEmpty(a,3,14)==true)
-              {
-                   comch[0]=3;
-                   comch[1]=14;
-              }
-         }
-         else if (isEmpty(a,5,10)==true)
-         {
-              comch[0]=5;
-              comch[1]=10;
-         }
-         else
-         {
-             for(int i=1;i<3;i++)
-             {
-                     for(int j=1;j<3;j++)
-                     {
-                             if(isEmpty(a,(i*2)+1,(j*4)+2)==true)
-                             {
-                                                     comch[0]=(i*2)+1;
-                                                     comch[1]=(j*4)+2;
-                             }
-                     }
-             }
+        return true;
+    }
+    
+    std::vector<std::pair<int, int>> getEmptyCells() const {
+        std::vector<std::pair<int, int>> emptyCells;
+        for (int i = 0; i < SIZE; ++i) {
+            for (int j = 0; j < SIZE; ++j) {
+                if (board[i][j] == ' ') {
+                    emptyCells.emplace_back(i, j);
+                }
+            }
         }
-         return comch;
-}
-
-void printBoard(char** a)
-{
-     for(int i=0;i<9;i++)
-     {
-             for(int j=0;j<17;j++)
-             {
-                     cout<<a[i][j];
-             }
-             cout<<endl;
-     }
-}
-
-
-int checkWin(char** a)
-{
-    if(a[3][6]==a[5][6] && a[5][6]==a[7][6])
-    {
-                        if(a[3][6]=='X')
-                         {
-                                         return 1;
-                         }
-                         else if(a[3][6]=='O')
-                         {
-                              return 2;
-                         }
+        return emptyCells;
     }
-    if(a[3][10]==a[5][10] && a[5][10]==a[7][10])
-    {
-                        if(a[3][10]=='X')
-                         {
-                                         return 1;
-                         }
-                         else if(a[3][10]=='O')
-                         {
-                              return 2;
-                         }
-    }
-    if(a[3][14]==a[5][14] && a[5][14]==a[7][14])
-    {
-                        if(a[3][14]=='X')
-                         {
-                                         return 1;
-                         }
-                         else if(a[3][14]=='O')
-                         {
-                              return 2;
-                         }
-    }
-    if(a[3][6]==a[3][10] && a[3][10]==a[3][14])
-    {
-                         if(a[3][6]=='X')
-                         {
-                                         return 1;
-                         }
-                         else if(a[3][6]=='O')
-                         {
-                              return 2;
-                         }
-    }
-    if(a[5][6]==a[5][10] && a[5][10]==a[5][14])
-    {
-                         if(a[5][6]=='X')
-                         {
-                                         return 1;
-                         }
-                         else if(a[5][6]=='O')
-                         {
-                              return 2;
-                         }
-    }
-    if(a[7][6]==a[7][10] && a[7][10]==a[7][14])
-    {
-                         if(a[7][6]=='X')
-                         {
-                                         return 1;
-                         }
-                         else if(a[7][6]=='O')
-                         {
-                              return 2;
-                         }
-    }
-    if(a[3][6]==a[5][10] && a[5][10]==a[7][14])
-    {
-                         if(a[3][6]=='X')
-                         {
-                                         return 1;
-                         }
-                         else if(a[3][6]=='O')
-                         {
-                              return 2;
-                         }
-    }
-    if(a[7][6]==a[5][10] && a[5][10]==a[3][14])
-    {
-                         if(a[7][6]=='X')
-                         {
-                                         return 1;
-                         }
-                         else if(a[7][6]=='O')
-                         {
-                              return 2;
-                         }
-    }
-    if((a[3][6]=='X' || a[3][6]=='O') && (a[3][10]=='X' || a[3][10]=='O') && (a[3][14]=='X' || a[3][14]=='O') && (a[5][6]=='X' || a[5][6]=='O') && (a[5][10]=='X' || a[5][10]=='O') && (a[5][14]=='X' || a[5][14]=='O') && (a[7][6]=='X' || a[7][6]=='O') && (a[7][10]=='X' || a[7][10]=='O') && (a[7][14]=='X' || a[7][14]=='O'))
-    {
-                     return 3;
-    }
-    return 0;
-}
-
-void errorReport(int p)
-{
-     if(p==0)
-     {
-      cout<<"You havo to choose bewtween these numbers: 1 , 2 , 3"<<endl;
-     }
-     if(p==1)
-     {
-      cout<<"This space has been already choosed!! "<<endl;
-     }
-}
-
-int main()
-{
-    system("color 0A");
-    int k=0;
-    int t=0;
-    char difficulty='0';
-    int numberOfPlayers=2;
-    cout<<"Welcome to S*S TicTacToe"<<endl;
-    cout<<"Press any key to play..."<<endl;
-    getch();
-    replay:
-    system("CLS");
-    cout<<"Enter number of players:\n";
-    cout<<"( 1:Against computer \t 2:Two Players \t   oth:Exit )"<<endl;
-    char np=getche();
-    system("CLS");
-    if(np=='2')
-    {
-    char ans='n';
-    char win='n';
-    char **a=new char*[9];
-    for(int i=0;i<9;i++)
-    {
-            a[i]=new char[17];
-    }
-    win='n';
-    ans='n';
-    a[0][0]=char(201);
-    a[0][1]=char(205);
-    a[0][2]=char(205);
-    a[0][3]=char(205);
-    a[0][4]=char(209);
-    a[0][5]=char(205);
-    a[0][6]=char(205);
-    a[0][7]=char(205);
-    a[0][8]=char(209);
-    a[0][9]=char(205);
-    a[0][10]=char(205);
-    a[0][11]=char(205);
-    a[0][12]=char(209);
-    a[0][13]=char(205);
-    a[0][14]=char(205);
-    a[0][15]=char(205);
-    a[0][16]=char(187);
-    a[1][0]=char(186);
-    a[1][1]=' ';
-    a[1][2]='*';
-    a[1][3]=' ';
-    a[1][4]=char(179);
-    a[1][5]=' ';
-    a[1][6]='1';
-    a[1][7]=' ';
-    a[1][8]=char(179);
-    a[1][9]=' ';
-    a[1][10]='2';
-    a[1][11]=' ';
-    a[1][12]=char(179);
-    a[1][13]=' ';
-    a[1][14]='3';
-    a[1][15]=' ';
-    a[1][16]=char(186);
-    a[2][0]=char(204);
-    a[2][1]=char(205);
-    a[2][2]=char(205);
-    a[2][3]=char(205);
-    a[2][4]=char(216);
-    a[2][5]=char(205);
-    a[2][6]=char(205);
-    a[2][7]=char(205);
-    a[2][8]=char(216);
-    a[2][9]=char(205);
-    a[2][10]=char(205);
-    a[2][11]=char(205);
-    a[2][12]=char(216);
-    a[2][13]=char(205);
-    a[2][14]=char(205);
-    a[2][15]=char(205);
-    a[2][16]=char(185);
-    a[3][0]=char(186);
-    a[3][1]=' ';
-    a[3][2]='1';
-    a[3][3]=' ';
-    a[3][4]=char(179);
-    a[3][5]=' ';
-    a[3][6]='-';
-    a[3][7]=' ';
-    a[3][8]=char(179);
-    a[3][9]=' ';
-    a[3][10]='-';
-    a[3][11]=' ';
-    a[3][12]=char(179);
-    a[3][13]=' ';
-    a[3][14]='-';
-    a[3][15]=' ';
-    a[3][16]=char(186);
-        
-    a[4][0]=char(204);
-    a[4][1]=char(205);
-    a[4][2]=char(205);
-    a[4][3]=char(205);
-    a[4][4]=char(216);
-    a[4][5]=char(205);
-    a[4][6]=char(205);
-    a[4][7]=char(205);
-    a[4][8]=char(216);
-    a[4][9]=char(205);
-    a[4][10]=char(205);
-    a[4][11]=char(205);
-    a[4][12]=char(216);
-    a[4][13]=char(205);
-    a[4][14]=char(205);
-    a[4][15]=char(205);
-    a[4][16]=char(185);
-    a[5][0]=char(186);
-    a[5][1]=' ';
-    a[5][2]='2';
-    a[5][3]=' ';
-    a[5][4]=char(179);
-    a[5][5]=' ';
-    a[5][6]='-';
-    a[5][7]=' ';
-    a[5][8]=char(179);
-    a[5][9]=' ';
-    a[5][10]='-';
-    a[5][11]=' ';
-    a[5][12]=char(179);
-    a[5][13]=' ';
-    a[5][14]='-';
-    a[5][15]=' ';
-    a[5][16]=char(186);
     
-    a[6][0]=char(204);
-    a[6][1]=char(205);
-    a[6][2]=char(205);
-    a[6][3]=char(205);
-    a[6][4]=char(216);
-    a[6][5]=char(205);
-    a[6][6]=char(205);
-    a[6][7]=char(205);
-    a[6][8]=char(216);
-    a[6][9]=char(205);
-    a[6][10]=char(205);
-    a[6][11]=char(205);
-    a[6][12]=char(216);
-    a[6][13]=char(205);
-    a[6][14]=char(205);
-    a[6][15]=char(205);
-    a[6][16]=char(185);
-    a[7][0]=char(186);
-    a[7][1]=' ';
-    a[7][2]='3';
-    a[7][3]=' ';
-    a[7][4]=char(179);
-    a[7][5]=' ';
-    a[7][6]='-';
-    a[7][7]=' ';
-    a[7][8]=char(179);
-    a[7][9]=' ';
-    a[7][10]='-';
-    a[7][11]=' ';
-    a[7][12]=char(179);
-    a[7][13]=' ';
-    a[7][14]='-';
-    a[7][15]=' ';
-    a[7][16]=char(186);
+    int checkWinner() const {
+        // Check rows
+        for (int i = 0; i < SIZE; ++i) {
+            if (board[i][0] != ' ' && board[i][0] == board[i][1] && board[i][1] == board[i][2]) {
+                return (board[i][0] == 'X') ? 1 : 2;
+            }
+        }
         
-    a[8][0]=char(200);
-    a[8][1]=char(205);
-    a[8][2]=char(205);
-    a[8][3]=char(205);
-    a[8][4]=char(207);
-    a[8][5]=char(205);
-    a[8][6]=char(205);
-    a[8][7]=char(205);
-    a[8][8]=char(207);
-    a[8][9]=char(205);
-    a[8][10]=char(205);
-    a[8][11]=char(205);
-    a[8][12]=char(207);
-    a[8][13]=char(205);
-    a[8][14]=char(205);
-    a[8][15]=char(205);
-    a[8][16]=char(188);
-    int player=1;
-    while(win!='y')
-    {
-                   mainBoard:
-                   system("cls");
-                   printBoard(a);
-                   if(player==1)
-                   {
-                   system("color 0B");
-                   cout<<"Pleyer 1:"<<endl;
-                   cout<<"Enter your choose"<<endl;
-                   cout<<"Row:";
-                   cin>>k;
-                   cout<<"Column:";
-                   cin>>t;
-                   if(k>3 || k<1 || t>3 || t<1)
-                   {
-                          errorReport(0);
-                          getch();
-                          goto mainBoard;
-                   }
-                   else
-                   {
-                       if(a[(k*2)+1][(4*t)+2]=='-')
-                       {
-                        a[(k*2)+1][(t*4)+2]='X';
-                       }
-                       else
-                       {
-                           errorReport(1);
-                           getch();
-                           goto mainBoard;
-                       }
-                   }
-                   player=2;
-                   }
-                   else
-                   {
-                   system("color 0C");
-                   cout<<"Pleyer 2:"<<endl;
-                   cout<<"Enter your choose"<<endl;
-                   cout<<"Row:";
-                   cin>>k;
-                   cout<<"Column:";
-                   cin>>t;
-                   if(k>3 || k<1 || t>3 || t<1)
-                   {
-                          errorReport(0);
-                          getch();
-                          goto mainBoard;
-                   }
-                   else
-                   {
-                       if(a[(k*2)+1][(4*t)+2]=='-')
-                       {
-                        a[(k*2)+1][(4*t)+2]='O';
-                       }
-                       else
-                       {
-                           errorReport(1);
-                           getch();
-                           goto mainBoard;
-                       }
-                   }
-                   player=1;
-                   }
-                   if(checkWin(a)==1)
-                   {
-                                     system("cls");
-                                     system("color 0A");
-                                     win='y';
-                                     cout<<"Player 1 won!!!!!"<<endl;
-                   }
-                   else if(checkWin(a)==2)
-                   {
-                                     system("cls");
-                                     system("color 0A");
-                                     win='y';
-                                     cout<<"Player 2 won!!!!!"<<endl;
-                   }
-                   else if(checkWin(a)==3)
-                   {
-                                     system("cls");
-                                     system("color 0A");
-                                     win='y';
-                                     cout<<"Cat's play"<<endl;
-                   }
+        // Check columns
+        for (int j = 0; j < SIZE; ++j) {
+            if (board[0][j] != ' ' && board[0][j] == board[1][j] && board[1][j] == board[2][j]) {
+                return (board[0][j] == 'X') ? 1 : 2;
+            }
+        }
+        
+        // Check main diagonal
+        if (board[0][0] != ' ' && board[0][0] == board[1][1] && board[1][1] == board[2][2]) {
+            return (board[0][0] == 'X') ? 1 : 2;
+        }
+        
+        // Check anti-diagonal
+        if (board[0][2] != ' ' && board[0][2] == board[1][1] && board[1][1] == board[2][0]) {
+            return (board[0][2] == 'X') ? 1 : 2;
+        }
+        
+        // Check for draw
+        if (isFull()) return 0;
+        
+        // Game continues
+        return -1;
     }
-    printBoard(a);
-    cout<<endl;
-    Ask:
-    cout<<"Do you want to play again?(y/n)"<<endl;
-    cin>>ans;
-    if(ans=='y')
-    {
-                goto replay;
-    }
-    else if(ans !='n')
-    {
-         cout<<"you have to enter 'y' or 'n'\nPress any key..."<<endl;
-         getch();
-         goto Ask;
-    }
-    system("cls");
-    cout<<"Thenk you for playing this game"<<endl;
-    cout<<"By: Cpp Programmers "<<endl;
-    cout<<"http://cppcenter.blogfa.com"<<endl;
-    getch();
-    return 0;
-    }
-    else if(np=='1')
-    {
-    AskDifficulty:
-    cout<<"Choose the difficulty:\n1.Easy\n2.Normal\n3.Hard"<<endl;
-    cin>>difficulty;
     
-    if(difficulty!='1' && difficulty!='2' && difficulty!='3')
-    {
-                     cout<<"You must choose between these numbers : 1 , 2 & 3"<<endl;
-                     getch();
-                     system("CLS");
-                     goto AskDifficulty; 
-    }
-    char ans='n';
-    char win='n';
-    char **a=new char*[9];
-    for(int i=0;i<9;i++)
-    {
-            a[i]=new char[17];
-    }
-    win='n';
-    ans='n';
-    a[0][0]=char(201);
-    a[0][1]=char(205);
-    a[0][2]=char(205);
-    a[0][3]=char(205);
-    a[0][4]=char(209);
-    a[0][5]=char(205);
-    a[0][6]=char(205);
-    a[0][7]=char(205);
-    a[0][8]=char(209);
-    a[0][9]=char(205);
-    a[0][10]=char(205);
-    a[0][11]=char(205);
-    a[0][12]=char(209);
-    a[0][13]=char(205);
-    a[0][14]=char(205);
-    a[0][15]=char(205);
-    a[0][16]=char(187);
-    a[1][0]=char(186);
-    a[1][1]=' ';
-    a[1][2]='*';
-    a[1][3]=' ';
-    a[1][4]=char(179);
-    a[1][5]=' ';
-    a[1][6]='1';
-    a[1][7]=' ';
-    a[1][8]=char(179);
-    a[1][9]=' ';
-    a[1][10]='2';
-    a[1][11]=' ';
-    a[1][12]=char(179);
-    a[1][13]=' ';
-    a[1][14]='3';
-    a[1][15]=' ';
-    a[1][16]=char(186);
-    a[2][0]=char(204);
-    a[2][1]=char(205);
-    a[2][2]=char(205);
-    a[2][3]=char(205);
-    a[2][4]=char(216);
-    a[2][5]=char(205);
-    a[2][6]=char(205);
-    a[2][7]=char(205);
-    a[2][8]=char(216);
-    a[2][9]=char(205);
-    a[2][10]=char(205);
-    a[2][11]=char(205);
-    a[2][12]=char(216);
-    a[2][13]=char(205);
-    a[2][14]=char(205);
-    a[2][15]=char(205);
-    a[2][16]=char(185);
-    a[3][0]=char(186);
-    a[3][1]=' ';
-    a[3][2]='1';
-    a[3][3]=' ';
-    a[3][4]=char(179);
-    a[3][5]=' ';
-    a[3][6]='-';
-    a[3][7]=' ';
-    a[3][8]=char(179);
-    a[3][9]=' ';
-    a[3][10]='-';
-    a[3][11]=' ';
-    a[3][12]=char(179);
-    a[3][13]=' ';
-    a[3][14]='-';
-    a[3][15]=' ';
-    a[3][16]=char(186);
+    void display() const {
+        std::cout << "\n     1   2   3" << std::endl;
+        std::cout << "   +---+---+---+" << std::endl;
         
-    a[4][0]=char(204);
-    a[4][1]=char(205);
-    a[4][2]=char(205);
-    a[4][3]=char(205);
-    a[4][4]=char(216);
-    a[4][5]=char(205);
-    a[4][6]=char(205);
-    a[4][7]=char(205);
-    a[4][8]=char(216);
-    a[4][9]=char(205);
-    a[4][10]=char(205);
-    a[4][11]=char(205);
-    a[4][12]=char(216);
-    a[4][13]=char(205);
-    a[4][14]=char(205);
-    a[4][15]=char(205);
-    a[4][16]=char(185);
-    a[5][0]=char(186);
-    a[5][1]=' ';
-    a[5][2]='2';
-    a[5][3]=' ';
-    a[5][4]=char(179);
-    a[5][5]=' ';
-    a[5][6]='-';
-    a[5][7]=' ';
-    a[5][8]=char(179);
-    a[5][9]=' ';
-    a[5][10]='-';
-    a[5][11]=' ';
-    a[5][12]=char(179);
-    a[5][13]=' ';
-    a[5][14]='-';
-    a[5][15]=' ';
-    a[5][16]=char(186);
+        for (int i = 0; i < SIZE; ++i) {
+            std::cout << " " << (i + 1) << " |";
+            for (int j = 0; j < SIZE; ++j) {
+                char cell = board[i][j];
+                std::cout << " " << cell << " |";
+            }
+            std::cout << std::endl;
+            std::cout << "   +---+---+---+" << std::endl;
+        }
+        std::cout << std::endl;
+    }
     
-    a[6][0]=char(204);
-    a[6][1]=char(205);
-    a[6][2]=char(205);
-    a[6][3]=char(205);
-    a[6][4]=char(216);
-    a[6][5]=char(205);
-    a[6][6]=char(205);
-    a[6][7]=char(205);
-    a[6][8]=char(216);
-    a[6][9]=char(205);
-    a[6][10]=char(205);
-    a[6][11]=char(205);
-    a[6][12]=char(216);
-    a[6][13]=char(205);
-    a[6][14]=char(205);
-    a[6][15]=char(205);
-    a[6][16]=char(185);
-    a[7][0]=char(186);
-    a[7][1]=' ';
-    a[7][2]='3';
-    a[7][3]=' ';
-    a[7][4]=char(179);
-    a[7][5]=' ';
-    a[7][6]='-';
-    a[7][7]=' ';
-    a[7][8]=char(179);
-    a[7][9]=' ';
-    a[7][10]='-';
-    a[7][11]=' ';
-    a[7][12]=char(179);
-    a[7][13]=' ';
-    a[7][14]='-';
-    a[7][15]=' ';
-    a[7][16]=char(186);
+    void displayWithHighlight(int lastRow = -1, int lastCol = -1) const {
+        std::cout << "\n     1   2   3" << std::endl;
+        std::cout << "   +---+---+---+" << std::endl;
         
-    a[8][0]=char(200);
-    a[8][1]=char(205);
-    a[8][2]=char(205);
-    a[8][3]=char(205);
-    a[8][4]=char(207);
-    a[8][5]=char(205);
-    a[8][6]=char(205);
-    a[8][7]=char(205);
-    a[8][8]=char(207);
-    a[8][9]=char(205);
-    a[8][10]=char(205);
-    a[8][11]=char(205);
-    a[8][12]=char(207);
-    a[8][13]=char(205);
-    a[8][14]=char(205);
-    a[8][15]=char(205);
-    a[8][16]=char(188);
-    int player=1;
-    while(win!='y')
-    {
-                   mainBoard2:
-                   system("cls");
-                   printBoard(a);
-                   if(player==1)
-                   {
-                   system("color 0B");
-                   cout<<"Pleyer 1:"<<endl;
-                   cout<<"Enter your choose"<<endl;
-                   cout<<"Row:";
-                   cin>>k;
-                   cout<<"Column:";
-                   cin>>t;
-                   if(k>3 || k<1 || t>3 || t<1)
-                   {
-                          errorReport(0);
-                          getch();
-                          goto mainBoard2;
-                   }
-                   else
-                   {
-                       if(a[(k*2)+1][(4*t)+2]=='-')
-                       {
-                        a[(k*2)+1][(t*4)+2]='X';
-                       }
-                       else
-                       {
-                           errorReport(1);
-                           getch();
-                           goto mainBoard2;
-                       }
-                   }
-                   player=2;
-                   }
-                   else
-                   {
-                       
-                            system("color 0C");
-                            cout<<"Computer :"<<endl;
-                            int cch1 , cch2;
-                            if(difficulty=='3')
-                            {
-                                               cch1=chooseHard(a)[0];
-                                               cch2=chooseHard(a)[1];
-                            }
-                            if(difficulty=='2')
-                            {
-                                               cch1=choose(a)[0];
-                                               cch2=choose(a)[1];
-                            }
-                            if(difficulty=='1')
-                            {
-                                               cch1=chooseEasy(a)[0];
-                                               cch2=chooseEasy(a)[1];
-                            }
-                            a[cch1][cch2]='O';
-                            cout<<"Computer choose row "<<(cch1-1)/2<<" and column "<<(cch2-2)/4<<"."<<endl;
-                            getch();
-                            player=1;
-                            }
-                            if(checkWin(a)==1)
-                            {
-                                       system("cls");
-                                       system("color 0A");
-                                       win='y';
-                                       cout<<"Player 1 won!!!!!"<<endl;
-                   }
-                   else if(checkWin(a)==2)
-                   {
-                                     system("cls");
-                                     system("color 0A");
-                                     win='y';
-                                     cout<<"Computer won!!!!!"<<endl;
-                   }
-                   else if(checkWin(a)==3)
-                   {
-                                     system("cls");
-                                     system("color 0A");
-                                     win='y';
-                                     cout<<"Cat's play"<<endl;
-                   }
+        for (int i = 0; i < SIZE; ++i) {
+            std::cout << " " << (i + 1) << " |";
+            for (int j = 0; j < SIZE; ++j) {
+                char cell = board[i][j];
+                if (i == lastRow && j == lastCol) {
+                    std::cout << "[" << cell << "]";
+                } else {
+                    std::cout << " " << cell << " ";
+                }
+                std::cout << "|";
+            }
+            std::cout << std::endl;
+            std::cout << "   +---+---+---+" << std::endl;
+        }
+        std::cout << std::endl;
     }
-    printBoard(a);
-    cout<<endl;
-    Ask2:
-    cout<<"do you want play again??(y/n)"<<endl;
-    cin>>ans;
-    if(ans=='y')
-    {
-                goto replay;
+};
+
+// AI Player Class with Minimax Algorithm
+class AIPlayer {
+private:
+    enum Difficulty { EASY, MEDIUM, HARD, EXPERT };
+    Difficulty difficulty;
+    std::mt19937 rng;
+    mutable int nodesEvaluated; // For performance tracking
+    
+    int minimax(TicTacToeBoard& board, int depth, bool isMaximizing, 
+                int alpha = std::numeric_limits<int>::min(), 
+                int beta = std::numeric_limits<int>::max()) const {
+        nodesEvaluated++;
+        int result = board.checkWinner();
+        
+        // Base cases with depth consideration for better play
+        if (result == 2) return 10 - depth;  // AI wins (prefer quicker wins)
+        if (result == 1) return depth - 10;  // Player wins (delay losses)
+        if (result == 0 || depth >= 9) return 0;  // Draw or max depth
+        
+        if (isMaximizing) {
+            int maxEval = std::numeric_limits<int>::min();
+            auto emptyCells = board.getEmptyCells();
+            
+            for (const auto& cell : emptyCells) {
+                board.makeMove(cell.first, cell.second, 'O');
+                int eval = minimax(board, depth + 1, false, alpha, beta);
+                board.undoMove(cell.first, cell.second);
+                
+                maxEval = std::max(maxEval, eval);
+                alpha = std::max(alpha, eval);
+                if (beta <= alpha) break; // Alpha-beta pruning
+            }
+            return maxEval;
+        } else {
+            int minEval = std::numeric_limits<int>::max();
+            auto emptyCells = board.getEmptyCells();
+            
+            for (const auto& cell : emptyCells) {
+                board.makeMove(cell.first, cell.second, 'X');
+                int eval = minimax(board, depth + 1, true, alpha, beta);
+                board.undoMove(cell.first, cell.second);
+                
+                minEval = std::min(minEval, eval);
+                beta = std::min(beta, eval);
+                if (beta <= alpha) break; // Alpha-beta pruning
+            }
+            return minEval;
+        }
     }
-    else if(ans !='n')
-    {
-         cout<<"you have to enter 'y' or 'n'\nPress any key..."<<endl;
-         getch();
-         goto Ask2;
+    
+    std::pair<int, int> getBestMove(TicTacToeBoard& board) const {
+        auto emptyCells = board.getEmptyCells();
+        if (emptyCells.empty()) return {-1, -1};
+        
+        nodesEvaluated = 0;
+        int bestScore = std::numeric_limits<int>::min();
+        std::pair<int, int> bestMove = emptyCells[0];
+        
+        for (const auto& cell : emptyCells) {
+            board.makeMove(cell.first, cell.second, 'O');
+            int score = minimax(board, 0, false);
+            board.undoMove(cell.first, cell.second);
+            
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = cell;
+            }
+        }
+        
+        return bestMove;
     }
-    system("cls");
-    cout<<"MAMANON BARAYE ENTEKHAB BAZI(TNX)"<<endl;
-    cout<<"By: POYA "<<endl;
-    cout<<"POYA#2243"<<endl;
-    getch();
+    
+    std::pair<int, int> getRandomMove(TicTacToeBoard& board) const {
+        auto emptyCells = board.getEmptyCells();
+        if (emptyCells.empty()) return {-1, -1};
+        
+        std::uniform_int_distribution<> dis(0, emptyCells.size() - 1);
+        return emptyCells[dis(const_cast<std::mt19937&>(rng))];
+    }
+    
+    std::pair<int, int> getMediumMove(TicTacToeBoard& board) const {
+        // 70% chance for best move, 30% for random
+        std::uniform_int_distribution<> dis(1, 100);
+        if (dis(const_cast<std::mt19937&>(rng)) <= 70) {
+            return getBestMove(board);
+        } else {
+            return getRandomMove(board);
+        }
+    }
+    
+    std::pair<int, int> getHardMove(TicTacToeBoard& board) const {
+        // 90% chance for best move, 10% for random
+        std::uniform_int_distribution<> dis(1, 100);
+        if (dis(const_cast<std::mt19937&>(rng)) <= 90) {
+            return getBestMove(board);
+        } else {
+            return getRandomMove(board);
+        }
+    }
+    
+public:
+    AIPlayer(int difficultyLevel) : rng(std::chrono::steady_clock::now().time_since_epoch().count()),
+        nodesEvaluated(0) {
+        switch (difficultyLevel) {
+            case 1: difficulty = EASY; break;
+            case 2: difficulty = MEDIUM; break;
+            case 3: difficulty = HARD; break;
+            case 4: difficulty = EXPERT; break;
+            default: difficulty = MEDIUM; break;
+        }
+    }
+    
+    std::pair<int, int> makeMove(TicTacToeBoard& board) const {
+        switch (difficulty) {
+            case EASY: return getRandomMove(board);
+            case MEDIUM: return getMediumMove(board);
+            case HARD: return getHardMove(board);
+            case EXPERT: return getBestMove(board);
+            default: return getBestMove(board);
+        }
+    }
+    
+    std::string getDifficultyName() const {
+        switch (difficulty) {
+            case EASY: return "Easy (Random)";
+            case MEDIUM: return "Medium (70% Optimal)";
+            case HARD: return "Hard (90% Optimal)";
+            case EXPERT: return "Expert (Perfect Play)";
+            default: return "Unknown";
+        }
+    }
+    
+    int getNodesEvaluated() const { return nodesEvaluated; }
+};
+
+// Main Game Class
+class TicTacToeGame {
+private:
+    TicTacToeBoard board;
+    std::unique_ptr<AIPlayer> ai;
+    GameStats stats;
+    bool isPlayerVsPlayer;
+    std::pair<int, int> lastMove;
+    
+    void clearScreen() const {
+        system(CLEAR_SCREEN);
+    }
+    
+    void displayTitle() const {
+        std::cout << std::string(60, '=') << std::endl;
+        std::cout << "              ADVANCED TIC-TAC-TOE GAME" << std::endl;
+        std::cout << "           Featuring Minimax AI Algorithm" << std::endl;
+        std::cout << std::string(60, '=') << std::endl;
+    }
+    
+    void displayMenu() const {
+        std::cout << "\nGAME MENU:" << std::endl;
+        std::cout << "1. Player vs Computer" << std::endl;
+        std::cout << "2. Player vs Player" << std::endl;
+        std::cout << "3. View Statistics" << std::endl;
+        std::cout << "4. Reset Statistics" << std::endl;
+        std::cout << "5. How to Play" << std::endl;
+        std::cout << "6. Exit Game" << std::endl;
+    }
+    
+    void displayInstructions() const {
+        clearScreen();
+        displayTitle();
+        std::cout << "\nHOW TO PLAY:" << std::endl;
+        std::cout << std::string(40, '-') << std::endl;
+        std::cout << "* Enter row and column numbers (1-3) to make your move" << std::endl;
+        std::cout << "* Player 1 uses 'X', Player 2/Computer uses 'O'" << std::endl;
+        std::cout << "* Get three in a row (horizontal, vertical, or diagonal) to win!" << std::endl;
+        std::cout << "* If all spaces are filled with no winner, it's a draw" << std::endl;
+        std::cout << "\nAI DIFFICULTY LEVELS:" << std::endl;
+        std::cout << "* Easy: Random moves (good for beginners)" << std::endl;
+        std::cout << "* Medium: 70% optimal moves (balanced challenge)" << std::endl;
+        std::cout << "* Hard: 90% optimal moves (challenging)" << std::endl;
+        std::cout << "* Expert: Perfect play using Minimax algorithm (unbeatable)" << std::endl;
+        std::cout << "\nPress Enter to continue...";
+        std::cin.get();
+    }
+    
+    int getPlayerChoice(const std::string& prompt, int min, int max) {
+        int choice;
+        while (true) {
+            std::cout << prompt;
+            if (std::cin >> choice && choice >= min && choice <= max) {
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                return choice;
+            } else {
+                std::cout << "Invalid input! Please enter a number between " 
+                          << min << " and " << max << "." << std::endl;
+                std::cin.clear();
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
+        }
+    }
+    
+    std::pair<int, int> getPlayerMove(const std::string& playerName) {
+        int row, col;
+        while (true) {
+            std::cout << playerName << ", enter your move (row column): ";
+            if (std::cin >> row >> col) {
+                row--; col--; // Convert to 0-based indexing
+                if (board.isValidPosition(row, col)) {
+                    if (board.getCell(row, col) == ' ') {
+                        return {row, col};
+                    } else {
+                        std::cout << "That position is already taken! Try again." << std::endl;
+                    }
+                } else {
+                    std::cout << "Invalid position! Use numbers 1-3 for both row and column." << std::endl;
+                }
+            } else {
+                std::cout << "Invalid input! Please enter two numbers separated by space." << std::endl;
+                std::cin.clear();
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
+        }
+    }
+    
+    void displayGameResult(int winner) {
+        clearScreen();
+        displayTitle();
+        board.displayWithHighlight(lastMove.first, lastMove.second);
+        
+        std::cout << std::string(60, '-') << std::endl;
+        switch (winner) {
+            case 1:
+                std::cout << "CONGRATULATIONS! Player 1 (X) wins!" << std::endl;
+                break;
+            case 2:
+                if (isPlayerVsPlayer) {
+                    std::cout << "CONGRATULATIONS! Player 2 (O) wins!" << std::endl;
+                } else {
+                    std::cout << "Computer wins! The AI was too strong this time!" << std::endl;
+                    if (ai) {
+                        std::cout << "Nodes evaluated by AI: " << ai->getNodesEvaluated() << std::endl;
+                    }
+                }
+                break;
+            case 0:
+                std::cout << "It's a draw! Great game, well played by both sides!" << std::endl;
+                break;
+        }
+        std::cout << std::string(60, '-') << std::endl;
+        
+        stats.recordResult(winner);
+    }
+    
+    void setupComputerGame() {
+        isPlayerVsPlayer = false;
+        clearScreen();
+        displayTitle();
+        
+        std::cout << "\nSELECT AI DIFFICULTY LEVEL:" << std::endl;
+        std::cout << "1. Easy (Random moves - Good for beginners)" << std::endl;
+        std::cout << "2. Medium (70% optimal - Balanced challenge)" << std::endl;
+        std::cout << "3. Hard (90% optimal - Challenging)" << std::endl;
+        std::cout << "4. Expert (Perfect play - Unbeatable)" << std::endl;
+        
+        int difficulty = getPlayerChoice("\nEnter difficulty level (1-4): ", 1, 4);
+        ai = std::make_unique<AIPlayer>(difficulty);
+        
+        std::cout << "\nDifficulty set to: " << ai->getDifficultyName() << std::endl;
+        std::cout << "You are 'X', Computer is 'O'" << std::endl;
+        std::cout << "Try to get three in a row to win!" << std::endl;
+        std::cout << "\nPress Enter to start the game...";
+        std::cin.get();
+    }
+    
+    void playGame() {
+        board.reset();
+        lastMove = {-1, -1};
+        bool isPlayerTurn = true;
+        int currentPlayer = 1; // 1 for X, 2 for O
+        
+        while (true) {
+            clearScreen();
+            displayTitle();
+            
+            if (!isPlayerVsPlayer && ai) {
+                std::cout << "AI Difficulty: " << ai->getDifficultyName() << std::endl;
+            }
+            
+            if (lastMove.first != -1) {
+                board.displayWithHighlight(lastMove.first, lastMove.second);
+            } else {
+                board.display();
+            }
+            
+            int winner = board.checkWinner();
+            if (winner != -1) {
+                displayGameResult(winner);
+                std::cout << "\nPress Enter to return to menu...";
+                std::cin.get();
+                return;
+            }
+            
+            if (isPlayerVsPlayer) {
+                std::string playerName = "Player " + std::to_string(currentPlayer) + 
+                                       " (" + (currentPlayer == 1 ? "X" : "O") + ")";
+                auto move = getPlayerMove(playerName);
+                board.makeMove(move.first, move.second, currentPlayer == 1 ? 'X' : 'O');
+                lastMove = move;
+                currentPlayer = (currentPlayer == 1) ? 2 : 1;
+            } else {
+                if (isPlayerTurn) {
+                    auto move = getPlayerMove("Your turn (X)");
+                    board.makeMove(move.first, move.second, 'X');
+                    lastMove = move;
+                } else {
+                    std::cout << "Computer is thinking";
+                    // Add thinking animation
+                    for (int i = 0; i < 3; ++i) {
+                        std::cout << ".";
+                        std::cout.flush();
+                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    }
+                    
+                    auto move = ai->makeMove(board);
+                    if (move.first != -1 && move.second != -1) {
+                        board.makeMove(move.first, move.second, 'O');
+                        lastMove = move;
+                        std::cout << "\nComputer chose position (" << (move.first + 1) 
+                                  << ", " << (move.second + 1) << ")" << std::endl;
+                        std::cout << "Press Enter to continue...";
+                        std::cin.get();
+                    }
+                }
+                isPlayerTurn = !isPlayerTurn;
+            }
+        }
+    }
+    
+public:
+    TicTacToeGame() : isPlayerVsPlayer(false), lastMove{-1, -1} {}
+    
+    void run() {
+        stats.startGame();
+        
+        while (true) {
+            clearScreen();
+            displayTitle();
+            displayMenu();
+            
+            int choice = getPlayerChoice("\nEnter your choice (1-6): ", 1, 6);
+            
+            switch (choice) {
+                case 1:
+                    setupComputerGame();
+                    playGame();
+                    break;
+                case 2:
+                    isPlayerVsPlayer = true;
+                    ai.reset();
+                    std::cout << "\nTwo-player mode selected!" << std::endl;
+                    std::cout << "Player 1 is 'X', Player 2 is 'O'" << std::endl;
+                    std::cout << "Press Enter to start...";
+                    std::cin.get();
+                    playGame();
+                    break;
+                case 3:
+                    clearScreen();
+                    displayTitle();
+                    stats.displayStats();
+                    std::cout << "\nPress Enter to continue...";
+                    std::cin.get();
+                    break;
+                case 4:
+                    stats.reset();
+                    std::cout << "\nStatistics have been reset successfully!" << std::endl;
+                    std::cout << "Press Enter to continue...";
+                    std::cin.get();
+                    break;
+                case 5:
+                    displayInstructions();
+                    break;
+                case 6:
+                    clearScreen();
+                    displayTitle();
+                    stats.displayStats();
+                    std::cout << "\nThank you for playing Advanced Tic-Tac-Toe!" << std::endl;
+                    std::cout << "Powered by C++ with Minimax AI Algorithm" << std::endl;
+                    std::cout << "Created with modern programming practices" << std::endl;
+                    std::cout << "\nGoodbye!" << std::endl;
+                    return;
+            }
+        }
+    }
+};
+
+// Main Function
+int main() {
+    try {
+        TicTacToeGame game;
+        game.run();
+    } catch (const std::exception& e) {
+        std::cerr << "Fatal Error: " << e.what() << std::endl;
+        std::cerr << "Please restart the application." << std::endl;
+        return 1;
+    }
+    
     return 0;
-    }
-    else
-    {
-    cout<<"By: POYA "<<endl;
-    cout<<"discord: POYA#2243"<<endl;
-    getch();
-    return 0;
-    }
 }
